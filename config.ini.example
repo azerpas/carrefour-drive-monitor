@@ -1,0 +1,6 @@
+[options]
+postcode = 75001
+timeout = 0
+
+[proxies]
+46.48.112.4:8080
