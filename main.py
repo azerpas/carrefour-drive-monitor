@@ -162,8 +162,8 @@ def monitorStores(stores,proxy):
 					print("\n-------------------------------------------------")
 					log("Found store with availability !")
 					print(i["name"]+" à "+i["distance"]+"km")
-					print(i["address"]+" - "+i["city"])
-					print(i["cityCode"])
+					print(i["address"]["address1"]+" - "+i["address"]["city"])
+					print(i["address"]["cityCode"])
 					print("-------------------------------------------------\n")
 				except Exception as e:
 					log("Error while printing store")
@@ -230,8 +230,9 @@ def main():
 			log("Can't get stores after localisation, please check your parameters. Exiting.")
 			sys.exit(1)
 		while(True):
-			proxy = random.choice(proxies)
+			pr = random.choice(proxies)[0]
 			log("Checking your stores")
+			proxy = {"http":"http://"+pr,"https":"https://"+pr}
 			monitorStores(result,proxy)
 			log("Sleeping a minute before checking again")
 			time.sleep(60)
