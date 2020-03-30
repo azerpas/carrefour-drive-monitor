@@ -1,6 +1,7 @@
 /**
  * Responds to any HTTP request.
  *
+ * Redirect to handler depending on HTTP method.
  * @param {!express:Request} req HTTP request context.
  * @param {!express:Response} res HTTP response context.
  */
@@ -17,6 +18,7 @@ exports.processFbMessage = async (req, res) => {
 	}
 };
 
+/** Setting const and firebase requirements     */
 const request = require('request');
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
@@ -24,8 +26,13 @@ const functions = require('firebase-functions');
 admin.initializeApp(functions.config().firebase);
 
 const db = admin.firestore();
+/*******************/
 
-
+/**
+ * Handling GET to the server
+ * @param {!express:Request} req HTTP request context.
+ * @param {!express:Response} res HTTP response context.
+ */
 async function handleGET(req, res) {
 	const mode = req.query['hub.mode'];
 	const token = req.query['hub.verify_token'];
@@ -41,6 +48,14 @@ async function handleGET(req, res) {
 	}
 }
 
+/**
+ * Handling POST to the server
+ * Exclusively reacting to Messenger "page" object.
+ * Piling the different received messages to a Promise queue.
+ * Once we receive confirmation that every message is treated we send back 200.
+ * @param {!express:Request} req HTTP request context.
+ * @param {!express:Response} res HTTP response context.
+ */
 async function handlePOST(req, res) {
 	 // Parse the request body from the POST
 	let body = req.body;
@@ -71,8 +86,16 @@ async function handlePOST(req, res) {
 	}
 }
 
+/**
+ * Handling POST to the server
+ * Exclusively reacting to Messenger "page" object.
+ * Piling the different received messages to a Promise queue.
+ * Once we receive confirmation that every message is treated we send back 200.
+ * @param int sender_psid Facebook identifier for the sender.
+ * @param {!messenger:Webhook.Message} Messenger object text message.
+ * @param int timestamp sent at.
+ */
 async function handleMessage(sender_psid, received_message, timestamp) {
-
 	let response;
 	console.log("HANDLING");
 	if(isInfos(received_message.text)){
@@ -144,6 +167,11 @@ async function handleMessage(sender_psid, received_message, timestamp) {
 	}			
 }
 
+/**
+ * Calling the Facebook API to send a message
+ * @param int sender_psid Facebook identifier for the sender.
+ * @param string response text to send.
+ */
 async function callSendAPI(sender_psid, response) {
 	// Construct the message body
 	let request_body = {
@@ -167,19 +195,27 @@ async function callSendAPI(sender_psid, response) {
 }
 
 /*
- * Return if post code is valid
+ * Return if str is a valid french postcode
+ * @param string str
  */
 function isPostCode(str){
 	return /^([0-9]{5})$/.test(str.trim());
 }
 
 /*
- * Return infos
+ * Return if str contains "info"
+ * @param string str
  */
 function isInfos(str){
 	return str.trim().toLowerCase().match(/(info)/);
 }
 
+/**
+ * Adding data to Cloud Firestore
+ * @param int psid Facebook identifier for the sender.
+ * @param int timestamp sent at.
+ * @param string postcode given postcode.
+ */
 async function addUser(psid,timestamp,postcode){
 	let addDoc = await db.collection('users').add({
 		psid: psid,
