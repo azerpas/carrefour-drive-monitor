@@ -79,12 +79,12 @@ def getStores(locations,postcode):
 			response.json()
 		except Exception as e:
 			log("Can't read JSON")
-			if("maintenance" in r.text.lower()):
+			if("maintenance" in response.text.lower()):
 				log("Carrefour is in maintenance, will be waiting an hour.")
 				time.sleep(3600)
 				getStores(locations,postcode)
 			else:
-				print(r.text)
+				print(response.text)
 			return False
 		stores = response.json()["data"]["stores"]
 		if(len(stores) == 0):
