@@ -28,8 +28,8 @@ const db = admin.firestore();
 
 async function handleGET(req,res){
 	const mode = await req.query['mode'];
-	const codepostal = "77680"
-	if(mode){
+	const codepostal = await req.query['zip'];
+	if(mode && codepostal){
 		if(mode == "loca"){
 			let carrefour = new Carrefour(codepostal);
 			const location = await carrefour.getLoca();
