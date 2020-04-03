@@ -22,6 +22,7 @@ exports.processFbMessage = async (req, res) => {
 const request = require('request');
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
+const axios = require('axios');
 
 admin.initializeApp(functions.config().firebase);
 
@@ -71,7 +72,11 @@ async function handlePOST(req, res) {
 			console.log("timestamp: "+webhook_event.timestamp);
 			console.log("recipient: "+webhook_event.recipient.id);
 			console.log("message: "+webhook_event.message.text);
-			resolve(handleMessage(webhook_event.sender.id,webhook_event.message, webhook_event.timestamp));
+			if(!webhook_event.message.text){
+				resolve(false);
+			}else{
+				resolve(handleMessage(webhook_event.sender.id,webhook_event.message, webhook_event.timestamp));
+			}
 		});
 	});
 	Promise.all(promiseArray).then(() => {
@@ -134,6 +139,7 @@ async function handleMessage(sender_psid, received_message, timestamp) {
 	else if(isPostCode(received_message.text)){
 		let users = db.collection('users');
 		let snapshot = await users.where('psid', '==', sender_psid).get();
+		let a = askStores(sender_psid,received_message.text.trim())
 		if(snapshot.empty){
 			console.log("User not in database so we're adding him!")
 			let doc = await addUser( sender_psid, timestamp, received_message.text.trim());
@@ -226,4 +232,35 @@ async function addUser(psid,timestamp,postcode){
 	});
 	console.log('Added document with ID: ', addDoc.id);
 	return addDoc.id;
+}
+
+async function askStores(psid,postcode){
+	// asking our endpoint process.env.monitor
+	console.log("asking endpoint")
+	let response = await axios.get(process.env.monitor+`?mode=loca&zip=${postcode}`)
+		.catch(error=>{
+			response = {
+				"text": `Nous n'arrivons pas à contacter les Drive 😞`
+			}
+			console.error("Error")
+			console.error(error)
+			return callSendAPI(psid, response);
+		});
+	for(store of response.data){
+		if(store.availability != null){
+			console.log(store.availability)
+			response = { //"2020-04-08T10:00:00+0200"
+				"text": `🚨Nous avons trouvé un magasin! ${store.store.name} à ${store.store.distance} km de votre localisation!\n
+				🗓 Prochaine disponibilité: ${store.availability}
+				📍${store.store.address.address1}, ${store.store.address.city} ${store.store.address.cityCode}
+				`
+			}
+			callSendAPI(psid,response)
+		}
+	}
+	// sending results to psid & return promise
+	response = {
+		"text": `Nous vous contacterons dès que des magasins auront des disponibilités!`
+	}
+	return callSendAPI(psid, response);
 }

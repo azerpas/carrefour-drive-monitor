@@ -47,7 +47,12 @@ async function handleGET(req,res){
 					resolve(res.status(500).send(JSON.stringify({success:false,message:"Impossible d'obtenir la geolocalisation: "+location.message})))
 				})
 			}
-			
+		}
+		if(mode == "GUBZ"){ // get user by zip
+			return new Promise(resolve=>{
+				let users = await getUsersByZip(codepostal)
+				resolve(res.status(200).send(JSON.stringify(users)))
+			})
 		}
 	}
 	console.log("Not getting there")
@@ -59,6 +64,18 @@ async function monitor(){
 	let zip = [];
 	let users = await db.collection('users').get();
 	return users.docs.map(doc => doc.data().postcode);
+}
+
+async function getUsersByZip(postcode){
+	console.log("Getting users")
+	let users = await db.collection('users').where('postcode','==',postcode).get()
+	if(users){
+		return users.docs.map(doc => doc.data().psid)
+	}else{
+		console.error("No users found with postcode")
+		console.error(postcode)
+		return {}
+	}
 }
 
 class Carrefour{
