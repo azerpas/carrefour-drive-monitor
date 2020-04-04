@@ -145,11 +145,7 @@ async function handleMessage(sender_psid, received_message, timestamp) {
 			let doc = await addUser( sender_psid, timestamp, received_message.text.trim());
 			console.log(`ID received by firestore: ${doc}`);
 			response = {
-				"text": `
-					Merci! Vous êtes maintenant enregistré sous l'ID: "${doc}". \n
-					Nous vous recontacterons si nous trouvons des disponibilités autour de chez vous! 😄\n
-					Bon courage! 💪
-				`
+				"text": `Merci! Vous êtes maintenant enregistré sous l'ID: "${doc}". \n Nous vous recontacterons si nous trouvons des disponibilités autour de chez vous! 😄\nBon courage! 💪`
 			}
 			return callSendAPI(sender_psid, response);
 		}else{
@@ -250,10 +246,7 @@ async function askStores(psid,postcode){
 		if(store.availability != null){
 			console.log(store.availability)
 			response = { //"2020-04-08T10:00:00+0200"
-				"text": `🚨Nous avons trouvé un magasin! ${store.store.name} à ${store.store.distance} km de votre localisation!\n
-				🗓 Prochaine disponibilité: ${store.availability}
-				📍${store.store.address.address1}, ${store.store.address.city} ${store.store.address.cityCode}
-				`
+				"text": `🚨Nous avons trouvé un magasin! ${store.store.name} à ${store.store.distance} km de votre localisation!\n🗓 Prochaine disponibilité: ${store.availability}\n📍${store.store.address.address1}, ${store.store.address.city} ${store.store.address.cityCode}`
 			}
 			callSendAPI(psid,response)
 		}
