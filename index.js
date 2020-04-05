@@ -128,14 +128,6 @@ async function handleMessage(sender_psid, received_message, timestamp) {
 			return callSendAPI(sender_psid, response);
 		}
 	}
-	
-	else if (!(isPostCode(received_message.text))) {		
-		// Create the payload for a basic text message
-		response = {
-			"text": `🤖 Je n'ai pas compris votre demande.\nMerci de saisir un code postal français valide.`
-		}
-		return callSendAPI(sender_psid, response);
-	}
 	else if(isPostCode(received_message.text)){
 		let users = db.collection('users');
 		let snapshot = await users.where('psid', '==', sender_psid).get();
@@ -145,7 +137,7 @@ async function handleMessage(sender_psid, received_message, timestamp) {
 			let doc = await addUser( sender_psid, timestamp, received_message.text.trim());
 			console.log(`ID received by firestore: ${doc}`);
 			response = {
-				"text": `Merci! Vous êtes maintenant enregistré sous l'ID: "${doc}". \n Nous vous recontacterons si nous trouvons des disponibilités autour de chez vous! 😄\nBon courage! 💪`
+				"text": `Merci! Vous êtes maintenant enregistré sous l'ID: "${doc}". \nNous vous recontacterons si nous trouvons des disponibilités autour de chez vous! 😄\nBon courage! 💪`
 			}
 			return callSendAPI(sender_psid, response);
 		}else{
@@ -157,16 +149,55 @@ async function handleMessage(sender_psid, received_message, timestamp) {
 				}
 				let a = callSendAPI(sender_psid, response);
 				// update avec un nouveau postcode
-				let update = await users.doc(doc.id).update({postcode:received_message.text.trim()});
+				let update = await users.doc(doc.id).update({postcode:received_message.text.trim(),timestamp:timestamp});
 				response = {
-					"text": `C'est bon!✅\nVotre code postal a bien été modifié.\nVous recevrez des alertes dès que des Drive autour de chez vous auront des disponibilités! 🚘`
+					"text": `C'est bon!✅\nVotre code postal a bien été modifié.\nVous recevrez des alertes pendant 24H dès que des Drive autour de chez vous auront des disponibilités! 🚘`
 				}
 				return callSendAPI(sender_psid, response);
 			}
 			
 		}
+	}
+	else if (isStop(received_message.text)){
+		console.log("DELETING USER FROM THE DB");
+		try {
+			let users = db.collection('users');
+			let snapshot = await users.where('psid', '==', sender_psid).get();
+			if(snapshot.empty){
+				console.log("User not in database, can't stop")
+				response = {
+					"text": `Vos alertes sont déjà désactivées.`
+				}
+				return callSendAPI(sender_psid, response);
+			}
+			else{
+				for(doc of snapshot.docs){
+					console.log("Removing user "+doc.id)
+					await users.doc(doc.id).delete()
+					response = {
+						"text": `C'est bon! 👍\nVous ne serez plus contacté.\n\nN'hésitez pas à nous envoyer votre code postal afin de recevoir des alertes à nouveau. 😉`
+					}
+					return callSendAPI(sender_psid, response);
+				}
+			}
+		} catch (error) {
+			console.error("Error while deleting user: "+sender_psid)
+			console.error(error)
+			response = {
+				"text": `Veuillez réessayer dans quelques minutes.`
+			}
+			return callSendAPI(sender_psid, response);
+		}
 		
-	}			
+		
+	}
+	else if (!(isPostCode(received_message.text))) {		
+		// Create the payload for a basic text message
+		response = {
+			"text": `🤖 Je n'ai pas compris votre demande.\nMerci de saisir un code postal français valide.`
+		}
+		return callSendAPI(sender_psid, response);
+	}		
 }
 
 /**
@@ -210,6 +241,10 @@ function isPostCode(str){
  */
 function isInfos(str){
 	return str.trim().toLowerCase().match(/(info)/);
+}
+
+function isStop(str){
+	return str.trim().toLowerCase().match(/(stop)/);
 }
 
 /**

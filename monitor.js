@@ -136,7 +136,8 @@ async function alert(psid,availabilities){
 			console.log("Sending to "+psid)
 			let request_body = {
 				"recipient": { "id": psid },
-				"message": {  "text": `🚨Nous avons trouvé un magasin! ${store.store.name} à ${store.store.distance} km de votre localisation!\n🗓 Prochaine disponibilité: ${store.availability}\n📍${store.store.address.address1}, ${store.store.address.city} ${store.store.address.cityCode}` }
+				"message": {  "text": `🚨 Nous avons trouvé un magasin! ${store.store.name} à ${store.store.distance} km de votre localisation!\n\n🗓 Prochaine disponibilité: ${store.availability}\n\n📍 ${store.store.address.address1}, ${store.store.address.city} ${store.store.address.cityCode}\n${store.url}\n\nPour arrêter de recevoir des alertes, envoyez "STOP".` },
+				"tag": "NON_PROMOTIONAL_SUBSCRIPTION"
 			}
 			request({
 				"uri": "https://graph.facebook.com/v6.0/me/messages",
@@ -168,6 +169,8 @@ async function check(zip){
 		}
 	}
 }
+
+// TODO Cron job deleting every past 24H accounts
 
 /**
  * @class Carrefour Drive in
@@ -281,6 +284,7 @@ class Carrefour{
 	 */
 	async getAvailability(store){
 		let proxy = await getProxy();
+		const self = this;
 		return new Promise(resolve => {
 			const headers = {
 				'Host': 'www.carrefour.fr','accept': 'application/json, text/plain, */*','user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.69 Safari/537.36',
@@ -293,7 +297,7 @@ class Carrefour{
 					if(response.data.data){
 						if(response.data.data.type){
 							console.log("Found availability "+store.ref)
-							resolve({"store":store,"availability":response.data.data.attributes.begDate,"error":false})
+							resolve({"store":store,"url":"https://www.carrefour.fr/"+store.storePageUrl,"availability":response.data.data.attributes.begDate,"error":false})
 						}else{ 
 							console.log("Can't find availability...")
 							resolve({"store":store,"availability":null,"error":true,"message":response.data})
@@ -316,8 +320,13 @@ class Carrefour{
 					}
 				})
 				.catch(error => {
-					console.error("Seems like the request to get stores went wrong")
-					console.error(error)
+					console.error("Seems like the request to get the availability went wrong")
+					console.error(error.response.status)
+					console.error(error.response.data)
+					if(error.response.status == 403){
+						console.log("Retrying because of 403...")
+						resolve(self.getAvailability(store));
+					}
 					resolve({"success":false,"message":"Impossible de joindre Carrefour, impossible de trouver des magasins","error":error})
 				});
 		});
