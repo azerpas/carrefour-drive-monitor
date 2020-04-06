@@ -27,6 +27,9 @@ const axios = require('axios');
 admin.initializeApp(functions.config().firebase);
 
 const db = admin.firestore();
+
+const ALERT_BEFORE_REMOVING = 86000
+const DELETE_AFTER = 87000 // 86400 seconds = 1 day. 87000 to send a last alert
 /*******************/
 
 /**
@@ -44,7 +47,12 @@ async function handleGET(req, res) {
 		} else {
 			await res.sendStatus(403);
 		}
-	}else{
+	}
+	else if(mode === "CTL"){ // check time limit
+		let a = await manageDatabase()
+		await res.status(200).send(a);
+	}
+	else{
 		await res.sendStatus(404).send("Not found :(");
 	}
 }
@@ -259,7 +267,8 @@ async function addUser(psid,timestamp,postcode){
 		timestamp: timestamp,
 		lastAsked: 0,
 		lastPosted: 0,
-		postcode: postcode 
+		postcode: postcode,
+		alerted: false
 	});
 	console.log('Added document with ID: ', addDoc.id);
 	return addDoc.id;
@@ -291,4 +300,45 @@ async function askStores(psid,postcode){
 		"text": `Nous vous contacterons dès que des magasins auront des disponibilités!`
 	}
 	return callSendAPI(psid, response);
+}
+
+
+/**
+ * Checking inside the database if there's users about to get past the 24h limit
+ */
+async function manageDatabase(){
+	let users = db.collection('users');
+	let snapshot = await users.get();
+	if(snapshot.empty){
+		console.log("Database empty")
+		return false;
+	}else{
+		for(doc of snapshot.docs){
+			// if difference between now and first message to bot 
+			// is superior to 86000 seconds and inferior to 87000, then update with
+			// alert and update `alerted` field 
+			if( 
+				(parseInt(Date.now() - doc.data().timestamp) / 1000) < DELETE_AFTER &&
+				(parseInt(Date.now() - doc.data().timestamp) / 1000) > ALERT_BEFORE_REMOVING &&
+				doc.data().alerted == false
+			){
+				console.log("Alerting user "+doc.id+" that'll be soon removed")
+				let update = await users.doc(doc.id).update({alerted:true});
+				response = {
+					"text":  `👋 Nous vous disons à bientôt.\n\nMalheureusement Facebook nous impose de ne plus vous envoyer de message à compter de 24H après votre dernier message...\n\nSi vous désirez tout de même  continuer à recevoir des alertes, envoyez nous à nouveau votre code postal. 🤝`
+				}
+				callSendAPI(sender_psid, response);
+			}
+			// if difference between now and first message to bot 
+			// is superior to 87000 seconds (1 day), then remove
+			else if( (parseInt(Date.now() - doc.data().timestamp) / 1000) > DELETE_AFTER){
+				console.log("Removing user "+doc.id+" because of time limit")
+				await users.doc(doc.id).delete()
+			}
+			else{
+				console.log("Nothing to do with user "+doc.id)
+			}
+		}
+		return true
+	}
 }

@@ -170,8 +170,6 @@ async function check(zip){
 	}
 }
 
-// TODO Cron job deleting every past 24H accounts
-
 /**
  * @class Carrefour Drive in
  * 3 methods to retrieve availability
@@ -297,7 +295,7 @@ class Carrefour{
 					if(response.data.data){
 						if(response.data.data.type){
 							console.log("Found availability "+store.ref)
-							resolve({"store":store,"url":"https://www.carrefour.fr/"+store.storePageUrl,"availability":response.data.data.attributes.begDate,"error":false})
+							resolve({"store":store,"url":"https://www.carrefour.fr"+store.storePageUrl,"availability":response.data.data.attributes.begDate,"error":false})
 						}else{ 
 							console.log("Can't find availability...")
 							resolve({"store":store,"availability":null,"error":true,"message":response.data})
